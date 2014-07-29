@@ -3,7 +3,7 @@ LongPathFix
 
 This utility adds long path (> MAX_PATH = 260 characters) support to existing Win32 applications.
 
-Many Windows file APIs are limited to 260 characters unless you prefix with the path with \??\ (and then you cannot use relative paths, "..", etc.). This fix converts regular paths to \??\-style paths on the fly, in an attmept to add long path support to an arbitrary application.
+Many Windows file APIs are limited to 260 characters unless you [prefix the path with \\??\\](http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx#maxpath) (and then you cannot use relative paths, "..", etc.). This fix converts regular paths to \\??\\-style paths on the fly, in an attmept to add long path support to an arbitrary application.
 
 Usage
 =====
