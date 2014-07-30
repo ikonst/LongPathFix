@@ -65,6 +65,21 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 	win64 = true;
 #endif
 
+	// Extract command line
+	LPCWSTR CmdLine = GetChildCommandLine();
+	if (CmdLine == NULL)
+		return -1;
+	LPWSTR CmdLineCopy = _wcsdup(CmdLine); // CreateProcess requires writeable lpCommandLine
+	if (CmdLineCopy == NULL)
+		return -1;
+
+	// Check command line parameters
+	if (CmdLine[0] == '\0')
+	{
+		wprintf(L"Syntax: LongPathFix [file.exe] arguments\n");
+		return -1;
+	}
+
 	// Get own directory
 	WCHAR DllPath[MAX_PATH];
 	if (!GetModuleFileName(NULL, DllPath, MAX_PATH))
@@ -89,13 +104,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 	STARTUPINFO si;
 	GetStartupInfo(&si);
 
-	// Extract command line
-	LPCWSTR CmdLine = GetChildCommandLine();
-	if (CmdLine == NULL)
-		return -1;
-	LPWSTR CmdLineCopy = _wcsdup(CmdLine); // CreateProcess requires writeable lpCommandLine
-	if (CmdLineCopy == NULL)
-		return -1;
+	// Start process
 	BOOL CreateProcessResult = CreateProcess(NULL, CmdLineCopy, NULL, NULL, 0, 0, NULL, NULL, &si, &pi);
 	free(CmdLineCopy);
 	if (!CreateProcessResult)
