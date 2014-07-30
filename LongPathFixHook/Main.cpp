@@ -137,6 +137,9 @@ bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 			return false;
 		}
 
+		// Done with the GetLastError thread
+		CloseHandle(hThread);
+
 		SetLastError(dwThreadExitCode);
 		return false;
 	}
