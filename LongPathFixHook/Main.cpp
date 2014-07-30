@@ -173,8 +173,10 @@ BOOL WINAPI CreateProcessW_Detour(
 			PrintError(L"WARNING: Failed to inject DLL %s", g_ModuleName);
 		}
 
-		// Once the injection thread has returned it is safe to resume the main thread.
-		ResumeThread(lpProcessInformation->hThread);
+		// Once the injection thread has returned it is safe to resume the main thread,
+		// but only if the caller hasn't requested CREATE_SUSPENDED themselves.
+		if ((dwCreationFlags & CREATE_SUSPENDED) == 0)
+			ResumeThread(lpProcessInformation->hThread);
 	}
 
 	return CreateProcessResult;
