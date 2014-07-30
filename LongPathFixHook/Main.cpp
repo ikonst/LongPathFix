@@ -76,6 +76,7 @@ BOOL (WINAPI *fpCreateProcessW)(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
 // Waits for injected thread to finish and returns its exit code.
 bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 {
+	// Allocate remote memory for LibraryName
 	size_t LibraryNameSize = (wcslen(LibraryName) + 1) * sizeof(WCHAR);
 	LPVOID RemoteLibraryName = (LPVOID)VirtualAllocEx(hProcess, NULL, LibraryNameSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	if (RemoteLibraryName == NULL)
@@ -83,6 +84,7 @@ bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 		return false;
 	}
 
+	// Write LibraryName to remote process
 	if (WriteProcessMemory(hProcess, (LPVOID)RemoteLibraryName, LibraryName, LibraryNameSize, NULL) == 0)
 	{
 		DWORD error = GetLastError();
@@ -91,6 +93,7 @@ bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 		return false;
 	}
 
+	// Load library into target process
 	HANDLE hThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryW, (LPVOID)RemoteLibraryName, 0, NULL);
 	if (hThread == NULL)
 	{
@@ -100,10 +103,10 @@ bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 		return false;
 	}
 
-	// Wait for the thread to finish.
+	// Wait for the LoadLibraryW thread to finish
 	WaitForSingleObject(hThread, INFINITE);
 
-	// Lets see what it says...
+	// Lets see what it says
 	DWORD dwThreadExitCode;
 	if (!GetExitCodeThread(hThread,  &dwThreadExitCode))
 	{
@@ -113,21 +116,22 @@ bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 		return false;
 	}
 
-	// No need for this handle anymore, lets get rid of it.
+	// Done with the LoadLibraryW thread
 	CloseHandle(hThread);
 
-	// Lets clear up that memory we allocated earlier.
+	// Free remote memory
 	VirtualFreeEx(hProcess, RemoteLibraryName, 0, MEM_RELEASE);
 
 	if (dwThreadExitCode == 0) // LoadLibrary failed
 	{
+		// Get Win32 last error from process
 		hThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)GetLastError, (LPVOID)NULL, 0, NULL);
 		if (hThread == NULL)
 		{
 			return false;
 		}
 
-		// Get last error
+		// Wait for GetLastError to finish within remote process and get result
 		WaitForSingleObject(hThread, INFINITE);
 		if (!GetExitCodeThread(hThread,  &dwThreadExitCode))
 		{
@@ -170,7 +174,7 @@ BOOL WINAPI CreateProcessW_Detour(
 	if (CreateProcessResult)
 	{
 		// Inject our DLL
-		// This method returns only when injection thread returns.
+		// This method returns only after the injected DLL loads and initializes.
 		if (!LoadLibraryInjection(lpProcessInformation->hProcess, g_ModuleName))
 		{
 			PrintError(L"WARNING: Failed to inject DLL %s", g_ModuleName);
