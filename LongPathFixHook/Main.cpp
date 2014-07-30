@@ -76,8 +76,6 @@ BOOL (WINAPI *fpCreateProcessW)(LPCWSTR lpApplicationName, LPWSTR lpCommandLine,
 // Waits for injected thread to finish and returns its exit code.
 bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 {
-	LPVOID LoadLibraryAddr = (LPVOID)GetProcAddress(GetModuleHandle(L"kernel32.dll"), "LoadLibraryW");
-
 	size_t LibraryNameSize = (wcslen(LibraryName) + 1) * sizeof(WCHAR);
 	LPVOID RemoteLibraryName = (LPVOID)VirtualAllocEx(hProcess, NULL, LibraryNameSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	if (RemoteLibraryName == NULL)
@@ -93,7 +91,7 @@ bool LoadLibraryInjection(HANDLE hProcess, LPCWSTR LibraryName)
 		return false;
 	}
 
-	HANDLE hThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddr, (LPVOID)RemoteLibraryName, 0, NULL);
+	HANDLE hThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryW, (LPVOID)RemoteLibraryName, 0, NULL);
 	if (hThread == NULL)
 	{
 		DWORD error = GetLastError();
