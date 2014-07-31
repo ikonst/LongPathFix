@@ -207,13 +207,11 @@ BOOL Init(HINSTANCE hinstDLL)
 		return FALSE;
     if (MH_CreateHook(&GetFileAttributesW, &GetFileAttributesW_Detour, (LPVOID*)&fpGetFileAttributesW) != MH_OK)
 		return FALSE;
+		return FALSE;
+		return FALSE;
 
-    // Enable the hooks
-    if (MH_EnableHook(&CreateFileW) != MH_OK)
-		return FALSE;
-    if (MH_EnableHook(&CreateProcessW) != MH_OK)
-		return FALSE;
-    if (MH_EnableHook(&GetFileAttributesW) != MH_OK)
+	// Enable the hooks
+	if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK)
 		return FALSE;
 
 	return TRUE;
@@ -221,12 +219,8 @@ BOOL Init(HINSTANCE hinstDLL)
 
 BOOL Uninit()
 {
-    // Disable hooks
-    if (MH_DisableHook(&CreateFileW) != MH_OK)
-		return FALSE;
-    if (MH_DisableHook(&CreateProcessW) != MH_OK)
-		return FALSE;
-    if (MH_DisableHook(&GetFileAttributesW) != MH_OK)
+	// Disable all hooks
+	if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK)
 		return FALSE;
 
     // Uninitialize MinHook
