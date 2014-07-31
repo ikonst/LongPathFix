@@ -67,18 +67,19 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 
 	// Extract command line
 	LPCWSTR CmdLine = GetChildCommandLine();
-	if (CmdLine == NULL)
+	if (CmdLine == NULL || CmdLine[0] == '\0')
+	{
+		WCHAR ExecutablePath[MAX_PATH];
+		if (!GetModuleFileName(NULL, ExecutablePath, MAX_PATH))
+			return -1;
+		WCHAR *ExecutableName = wcsrchr(ExecutablePath, L'\\') + 1;
+		wprintf(L"Syntax: %s [file.exe] arguments\n", ExecutableName);
 		return -1;
+	}
+
 	LPWSTR CmdLineCopy = _wcsdup(CmdLine); // CreateProcess requires writeable lpCommandLine
 	if (CmdLineCopy == NULL)
 		return -1;
-
-	// Check command line parameters
-	if (CmdLine[0] == '\0')
-	{
-		wprintf(L"Syntax: LongPathFix [file.exe] arguments\n");
-		return -1;
-	}
 
 	// Get own directory
 	WCHAR DllPath[MAX_PATH];
@@ -109,7 +110,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 	free(CmdLineCopy);
 	if (!CreateProcessResult)
 	{
-		PrintError(L"Error starting process");
+		PrintError(L"Error starting \"%s\"", CmdLine);
 		return -1;
 	}
 
