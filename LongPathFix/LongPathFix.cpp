@@ -54,17 +54,19 @@ void PrintError(LPCWSTR format, ...)
 	va_end(vl);
 }
 
+const WCHAR DllName[] =
+#ifdef _WIN64
+	L"LongPathFix_x64.dll";
+#else
+	L"LongPathFix_x86.dll";
+#endif
+
 #if defined(CONSOLE)
 int wmain(int argc, const wchar_t* argv[])
 #else
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow)
 #endif
 {
-	bool win64 = false;
-#ifdef _WIN64
-	win64 = true;
-#endif
-
 	// Extract command line
 	LPCWSTR CmdLine = GetChildCommandLine();
 	if (CmdLine == NULL || CmdLine[0] == '\0')
@@ -81,17 +83,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdL
 	if (CmdLineCopy == NULL)
 		return -1;
 
-	// Get own directory
+	// Get own directory and append DllName
 	WCHAR DllPath[MAX_PATH];
 	if (!GetModuleFileName(NULL, DllPath, MAX_PATH))
 		return -1;
-	*(wcsrchr(DllPath, L'\\') + 1) = L'\0';
-
-	// Select correct dll name depending on whether x64 or win32 version launched.
-	if (win64)
-		wcsncat_s(DllPath, L"LongPathFix_x64.dll", _TRUNCATE);
-	else
-		wcsncat_s(DllPath, L"LongPathFix_x86.dll", _TRUNCATE);
+	wcscpy(wcsrchr(DllPath, L'\\') + 1, DllName);
 
 	// Load hooks into current processs
 	if (!LoadLibraryW(DllPath))
