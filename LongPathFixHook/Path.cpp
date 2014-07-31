@@ -6,6 +6,10 @@
 const WCHAR NtPathPrefix[] = L"\\\\?\\";
 const WCHAR NtOtherPathPrefix[] = L"\\??\\";
 
+// Pass those as=is
+const WCHAR DeviceConin[] = L"CONIN$"; // not a real device, cannot be prefixed by "\\.\"
+const WCHAR DeviceConout[] = L"CONOUT$"; // ditto
+
 LPCWSTR FindSep(LPCWSTR Path)
 {
 	while (*Path != '/' && *Path != '\\' && *Path != '\0')
@@ -18,6 +22,12 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 {
 	if (Path[0] == '\0')
 		return Path;
+
+	if (wcsnicmp(Path, DeviceConin, _countof(DeviceConin)-1) == 0)
+		return Path; // CONIN$
+
+	if (wcsnicmp(Path, DeviceConout, _countof(DeviceConout)-1) == 0)
+		return Path; // CONOUT$
 
 	if (wcsncmp(Path, NtPathPrefix, _countof(NtPathPrefix)-1) == 0)
 		return Path; // already NT path
