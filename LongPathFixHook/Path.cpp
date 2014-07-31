@@ -9,8 +9,35 @@ const WCHAR NtUncPrefix[] = L"\\\\?\\UNC\\";
 // Pass those as=is
 const WCHAR DevicePrefix[] = L"\\\\.\\";
 const WCHAR NtDevicePrefix[] = L"\\??\\"; // TODO: is equivalent to NtPathPrefix?
-const WCHAR DeviceConin[] = L"CONIN$"; // not a real device, cannot be prefixed by "\\.\"
-const WCHAR DeviceConout[] = L"CONOUT$"; // ditto
+
+// Special device names that shold be skipped
+const WCHAR *DeviceNames[] =
+{
+	L"CONIN$", // this is not a real device; cannot be prefixed by "\\.\"
+	L"CONOUT$", // this is not a real device; cannot be prefixed by "\\.\"
+	L"CON",
+	L"PRN",
+	L"AUX",
+	L"NUL",
+	L"COM1",
+	L"COM2",
+	L"COM3",
+	L"COM4",
+	L"COM5",
+	L"COM6",
+	L"COM7",
+	L"COM8",
+	L"COM9",
+	L"LPT1",
+	L"LPT2",
+	L"LPT3",
+	L"LPT4",
+	L"LPT5",
+	L"LPT6",
+	L"LPT7",
+	L"LPT8",
+	L"LPT9"
+};
 
 LPCWSTR FindSep(LPCWSTR Path)
 {
@@ -25,11 +52,12 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 	if (Path[0] == '\0')
 		return Path;
 
-	if (wcsnicmp(Path, DeviceConin, _countof(DeviceConin)-1) == 0)
-		return Path; // CONIN$
-
-	if (wcsnicmp(Path, DeviceConout, _countof(DeviceConout)-1) == 0)
-		return Path; // CONOUT$
+	// Skip device names
+	for (int i=0; i<_countof(DeviceNames); ++i)
+	{
+		if (wcsicmp(Path, DeviceNames[i]) == 0)
+			return Path;
+	}
 
 	if (wcsncmp(Path, NtPathPrefix, _countof(NtPathPrefix)-1) == 0)
 		return Path; // already NT path
