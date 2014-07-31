@@ -11,15 +11,15 @@ WCHAR g_ModuleName[MAX_PATH];
 
 //////////////////////////////////////////////////////////////////
 //
-// CreateFileW
+// CreateFileW/A
 //
 //////////////////////////////////////////////////////////////////
 
 // Pointer to original function
-HANDLE (WINAPI *fpCreateFileW)(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
+HANDLE (WINAPI *fpCreateFileW)(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
 
 HANDLE WINAPI CreateFileW_Detour(
-  _In_      LPCTSTR lpFileName,
+  _In_      LPCWSTR lpFileName,
   _In_      DWORD dwDesiredAccess,
   _In_      DWORD dwShareMode,
   _In_opt_  LPSECURITY_ATTRIBUTES lpSecurityAttributes,
@@ -39,9 +39,48 @@ HANDLE WINAPI CreateFileW_Detour(
 	return hFile;
 }
 
+HANDLE WINAPI CreateFileA_Detour(
+  _In_      LPCSTR lpFileName,
+  _In_      DWORD dwDesiredAccess,
+  _In_      DWORD dwShareMode,
+  _In_opt_  LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+  _In_      DWORD dwCreationDisposition,
+  _In_      DWORD dwFlagsAndAttributes,
+  _In_opt_  HANDLE hTemplateFile)
+{
+	DWORD RequiredSize = MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, NULL, 0);
+	if (RequiredSize == 0)
+		return INVALID_HANDLE_VALUE;
+
+	if (RequiredSize < 256)
+	{
+		WCHAR Buffer[256];
+		if (MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, Buffer, _countof(Buffer)) == 0)
+			return INVALID_HANDLE_VALUE;
+		return CreateFileW_Detour(Buffer, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+	}
+	else
+	{
+		WCHAR *Buffer = new WCHAR[RequiredSize];
+		if (Buffer == NULL)
+		{
+			SetLastError(ERROR_OUTOFMEMORY);
+			return INVALID_HANDLE_VALUE;
+		}
+		if (MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, Buffer, RequiredSize) == 0)
+		{
+			delete[] Buffer;
+			return INVALID_HANDLE_VALUE;
+		}
+		HANDLE hFile = CreateFileW_Detour(Buffer, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+		delete [] Buffer;
+		return hFile;
+	}
+}
+
 //////////////////////////////////////////////////////////////////
 //
-// GetFileAttributesW
+// GetFileAttributesW/A
 //
 //////////////////////////////////////////////////////////////////
 
@@ -63,14 +102,50 @@ DWORD WINAPI GetFileAttributesW_Detour(
 	return ret;
 }
 
+DWORD WINAPI GetFileAttributesA_Detour(
+    __in LPCSTR lpFileName)
+{
+	DWORD RequiredSize = MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, NULL, 0);
+	if (RequiredSize == 0)
+		return INVALID_FILE_ATTRIBUTES;
+
+	if (RequiredSize < 256)
+	{
+		WCHAR Buffer[256];
+		if (MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, Buffer, _countof(Buffer)) == 0)
+			return INVALID_FILE_ATTRIBUTES;
+		return GetFileAttributesW_Detour(Buffer);
+	}
+	else
+	{
+		WCHAR *Buffer = new WCHAR[RequiredSize];
+		if (Buffer == NULL)
+		{
+			SetLastError(ERROR_OUTOFMEMORY);
+			return INVALID_FILE_ATTRIBUTES;
+		}
+		if (MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, Buffer, RequiredSize) == 0)
+		{
+			delete[] Buffer;
+			return INVALID_FILE_ATTRIBUTES;
+		}
+		DWORD FileAttributes = GetFileAttributesW_Detour(Buffer);
+		delete [] Buffer;
+		return FileAttributes;
+	}
+}
+
 //////////////////////////////////////////////////////////////////
 //
-// CreateProcessW
+// CreateProcessW/A
 //
 //////////////////////////////////////////////////////////////////
 
-// Pointer to original function
+// Pointer to original widechar function
 BOOL (WINAPI *fpCreateProcessW)(LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
+
+// Pointer to original ANSI function
+BOOL (WINAPI *fpCreateProcessA)(LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation);
 
 // Inject a DLL into the target process by creating a new thread at LoadLibrary.
 // Waits for injected thread to finish and returns its exit code.
@@ -189,6 +264,44 @@ BOOL WINAPI CreateProcessW_Detour(
 	return CreateProcessResult;
 }
 
+BOOL WINAPI CreateProcessA_Detour(
+    __in_opt    LPCSTR lpApplicationName,
+    __inout_opt LPSTR lpCommandLine,
+    __in_opt    LPSECURITY_ATTRIBUTES lpProcessAttributes,
+    __in_opt    LPSECURITY_ATTRIBUTES lpThreadAttributes,
+    __in        BOOL bInheritHandles,
+    __in        DWORD dwCreationFlags,
+    __in_opt    LPVOID lpEnvironment,
+    __in_opt    LPCSTR lpCurrentDirectory,
+	__in        LPSTARTUPINFOA lpStartupInfo,
+    __out       LPPROCESS_INFORMATION lpProcessInformation
+    )
+{
+	PROCESS_INFORMATION pi;
+	if (lpProcessInformation == NULL)
+		lpProcessInformation = &pi;
+
+	// Start our new process with a suspended main thread
+	BOOL CreateProcessResult = fpCreateProcessA(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags | CREATE_SUSPENDED, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
+
+	if (CreateProcessResult)
+	{
+		// Inject our DLL
+		// This method returns only after the injected DLL loads and initializes.
+		if (!LoadLibraryInjection(lpProcessInformation->hProcess, g_ModuleName))
+		{
+			PrintError(L"WARNING: Failed to inject DLL %s", g_ModuleName);
+		}
+
+		// Once the injection thread has returned it is safe to resume the main thread,
+		// but only if the caller hasn't requested CREATE_SUSPENDED themselves.
+		if ((dwCreationFlags & CREATE_SUSPENDED) == 0)
+			ResumeThread(lpProcessInformation->hThread);
+	}
+
+	return CreateProcessResult;
+}
+
 //////////////////////////////////////////////////////////////////
 
 BOOL Init(HINSTANCE hinstDLL)
@@ -203,11 +316,15 @@ BOOL Init(HINSTANCE hinstDLL)
     // Create hooks in disabled state
     if (MH_CreateHook(&CreateFileW, &CreateFileW_Detour, (LPVOID*)&fpCreateFileW) != MH_OK)
 		return FALSE;
-    if (MH_CreateHook(&CreateProcessW, &CreateProcessW_Detour, (LPVOID*)&fpCreateProcessW) != MH_OK)
+    if (MH_CreateHook(&CreateFileA, &CreateFileA_Detour, NULL) != MH_OK) // no need for original
 		return FALSE;
     if (MH_CreateHook(&GetFileAttributesW, &GetFileAttributesW_Detour, (LPVOID*)&fpGetFileAttributesW) != MH_OK)
 		return FALSE;
+    if (MH_CreateHook(&GetFileAttributesA, &GetFileAttributesA_Detour, NULL) != MH_OK) // no need for original
 		return FALSE;
+    if (MH_CreateHook(&CreateProcessW, &CreateProcessW_Detour, (LPVOID*)&fpCreateProcessW) != MH_OK)
+		return FALSE;
+    if (MH_CreateHook(&CreateProcessA, &CreateProcessA_Detour, (LPVOID*)&fpCreateProcessA) != MH_OK)
 		return FALSE;
 
 	// Enable the hooks
