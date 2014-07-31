@@ -340,8 +340,8 @@ BOOL Uninit()
 	if (MH_DisableHook(MH_ALL_HOOKS) != MH_OK)
 		return FALSE;
 
-    // Uninitialize MinHook
-    if (MH_Uninitialize() != MH_OK)
+	// Uninitialize MinHook
+	if (MH_Uninitialize() != MH_OK)
 		return FALSE;
 
 	return TRUE;
