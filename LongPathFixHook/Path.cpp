@@ -4,9 +4,11 @@
 #include <string.h>
 
 const WCHAR NtPathPrefix[] = L"\\\\?\\";
-const WCHAR NtOtherPathPrefix[] = L"\\??\\";
+const WCHAR NtUncPrefix[] = L"\\\\?\\UNC\\";
 
 // Pass those as=is
+const WCHAR DevicePrefix[] = L"\\\\.\\";
+const WCHAR NtDevicePrefix[] = L"\\??\\"; // TODO: is equivalent to NtPathPrefix?
 const WCHAR DeviceConin[] = L"CONIN$"; // not a real device, cannot be prefixed by "\\.\"
 const WCHAR DeviceConout[] = L"CONOUT$"; // ditto
 
@@ -18,7 +20,7 @@ LPCWSTR FindSep(LPCWSTR Path)
 	return Path;
 }
 
-LPCWSTR CanonizePath(LPCWSTR Path)
+template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[BufferSize])
 {
 	if (Path[0] == '\0')
 		return Path;
@@ -32,8 +34,15 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 	if (wcsncmp(Path, NtPathPrefix, _countof(NtPathPrefix)-1) == 0)
 		return Path; // already NT path
 
-	if (wcsncmp(Path, NtOtherPathPrefix, _countof(NtOtherPathPrefix)-1) == 0)
-		return Path; // already NT path
+	if (wcsncmp(Path, DevicePrefix, _countof(DevicePrefix)-1) == 0)
+		return Path; // device prefix
+
+	if (wcsncmp(Path, NtDevicePrefix, _countof(NtDevicePrefix)-1) == 0)
+		return Path; // device prefix
+
+	// TODO: Note that \\.\C:\foo\..\foo\bar is also:
+	//        1) normalized by CreateFile
+	//        2) susceptible to MAX_PATH limitation
 
 	size_t len = wcslen(Path);
 
@@ -52,7 +61,9 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 			return NULL;
 		WCHAR Drive = Dir[0];
 
-		NewPath = new WCHAR[(_countof(NtPathPrefix) - 1) + 2 + len + 1];
+		// allocate buffer if needed
+		DWORD RequiredSize = (_countof(NtPathPrefix) - 1) + 2 + len + 1;
+		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
 		dst = NewPath;
@@ -73,7 +84,9 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 	{
 		// absolute path ("c:\foo\bar")
 
-		NewPath = new WCHAR[(_countof(NtPathPrefix) - 1) + len + 1];
+		// allocate buffer if needed
+		DWORD RequiredSize = (_countof(NtPathPrefix) - 1) + len + 1;
+		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
 		dst = NewPath;
@@ -89,6 +102,22 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 		++dst;
 		src += 3;
 	}
+	else if (Path[0] == '\\' && Path[1] == '\\')
+	{
+		// UNC (\\foo\bar\baz)
+
+		// allocate buffer if needed
+		DWORD RequiredSize = (_countof(NtUncPrefix) - 1) + len + 1;
+		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
+		if (NewPath == NULL)
+			return NULL;
+		dst = NewPath;
+
+		wcscpy(dst, NtUncPrefix);
+		dst += _countof(NtUncPrefix) - 1;
+
+		src += 2;
+	}
 	else
 	{
 		// relative path
@@ -98,7 +127,9 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 		if (DirLength == 0)
 			return NULL;
 
-		NewPath = new WCHAR[(_countof(NtPathPrefix) - 1) + (DirLength) + 1 + len + 1];
+		// allocate buffer if needed
+		DWORD RequiredSize = (_countof(NtPathPrefix) - 1) + (DirLength) + 1 + len + 1;
+		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
 		dst = NewPath;
@@ -162,3 +193,6 @@ LPCWSTR CanonizePath(LPCWSTR Path)
 
 	return NewPath;
 }
+
+// Instantitate for the common buffer size
+template LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[256]);

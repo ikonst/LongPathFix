@@ -5,6 +5,7 @@
 
 #include <Windows.h>
 #include <stdio.h>
+#include <stdlib.h> // for _countof
 #include <MinHook.h>
 
 WCHAR g_ModuleName[MAX_PATH];
@@ -27,14 +28,15 @@ HANDLE WINAPI CreateFileW_Detour(
   _In_      DWORD dwFlagsAndAttributes,
   _In_opt_  HANDLE hTemplateFile)
 {
-	LPCWSTR NewPath = CanonizePath(lpFileName);
+	WCHAR Buffer[256];
+	LPCWSTR NewPath = CanonizePath(lpFileName, Buffer);
 	if (NewPath == NULL)
 	{
 		SetLastError(ERROR_OUTOFMEMORY);
 		return INVALID_HANDLE_VALUE;
 	}
 	HANDLE hFile = fpCreateFileW(NewPath, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-	if (NewPath != lpFileName)
+	if (NewPath != lpFileName && NewPath != Buffer)
 		delete []NewPath;
 	return hFile;
 }
@@ -90,14 +92,15 @@ DWORD (WINAPI *fpGetFileAttributesW)(LPCWSTR lpFileName);
 DWORD WINAPI GetFileAttributesW_Detour(
     __in LPCWSTR lpFileName)
 {
-	LPCWSTR NewPath = CanonizePath(lpFileName);
+	WCHAR Buffer[256];
+	LPCWSTR NewPath = CanonizePath(lpFileName, Buffer);
 	if (NewPath == NULL)
 	{
 		SetLastError(ERROR_OUTOFMEMORY);
 		return INVALID_FILE_ATTRIBUTES;
 	}
 	DWORD ret = fpGetFileAttributesW(NewPath);
-	if (NewPath != lpFileName)
+	if (NewPath != lpFileName && NewPath != Buffer)
 		delete []NewPath;
 	return ret;
 }
