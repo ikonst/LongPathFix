@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LongPathFix", "LongPathFix\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libMinHook", "MinHook\build\VC10\libMinHook.vcxproj", "{F142A341-5EE0-442D-A15F-98AE9B48DBAE}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Tests", "Tests\Tests.vcxproj", "{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -39,6 +41,12 @@ Global
 		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|Win32.Build.0 = Release|Win32
 		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|x64.ActiveCfg = Release|x64
 		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|x64.Build.0 = Release|x64
+		{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}.Debug|Win32.Build.0 = Debug|Win32
+		{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}.Debug|x64.ActiveCfg = Debug|Win32
+		{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}.Release|Win32.ActiveCfg = Release|Win32
+		{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}.Release|Win32.Build.0 = Release|Win32
+		{E8E7E48F-26E2-4C5D-BB87-90E93A1F2946}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
