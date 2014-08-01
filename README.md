@@ -22,7 +22,6 @@ Known limitations
 =================
 
 * Only a handful of APIs are converted.
-* Only Unicode applications are supported.
 * 64-bit applications executing 32-bit child processes and vice versa are not supported.
 
 Motivation
