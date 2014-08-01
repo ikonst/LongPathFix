@@ -79,7 +79,47 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 	WCHAR *NewPath;
 	WCHAR *dst;
 
-	if (Path[0] == L'\\' || Path[0] == L'/')
+	if (Path[0] == '\\' && Path[1] == '\\')
+	{
+		// UNC (\\foo\bar\baz)
+
+		// allocate buffer if needed
+		size_t RequiredSize = (_countof(NtUncPrefix) - 1) + len + 1;
+		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
+		if (NewPath == NULL)
+			return NULL;
+		dst = NewPath;
+
+		// start with a \\?\UNC\ prefix
+		wcscpy(dst, NtUncPrefix);
+		dst += _countof(NtUncPrefix) - 1;
+		src += 2; // skip the double-slash
+
+		if (*src != '\0') // if a hostname follows
+		{
+			// Find hostname
+			LPCWSTR sep = FindSep(src);
+			size_t len = sep - src;
+
+			// Copy hostname
+			wcsncpy(dst, src, len);
+			dst += len;
+
+			if (*sep != '\0')
+			{
+				*dst = L'\\'; // append a backslash (never a forward-slash)
+				++dst;
+			}
+			else
+			{
+				*dst = '\0';
+				return NewPath; // path ended after hostname
+			}
+
+			src = sep + 1;
+		}
+	}
+	else if (Path[0] == L'\\' || Path[0] == L'/')
 	{
 		// root path ("\foo\bar")
 
@@ -124,27 +164,16 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 
 		*dst = toupper(*src);
 		++dst;
-		*dst = ':';
+		*dst = L':';
 		++dst;
-		*dst = '\\';
-		++dst;
-		src += 3;
-	}
-	else if (Path[0] == '\\' && Path[1] == '\\')
-	{
-		// UNC (\\foo\bar\baz)
-
-		// allocate buffer if needed
-		size_t RequiredSize = (_countof(NtUncPrefix) - 1) + len + 1;
-		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
-		if (NewPath == NULL)
-			return NULL;
-		dst = NewPath;
-
-		wcscpy(dst, NtUncPrefix);
-		dst += _countof(NtUncPrefix) - 1;
-
 		src += 2;
+
+		if (*src == L'/' || *src == L'\\') // if a slash follows
+		{
+			*dst = L'\\';
+			++dst;
+			++src;
+		}
 	}
 	else
 	{
@@ -172,6 +201,9 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 		++dst;
 	}
 
+	// Mark the beginning of the path for sake of ".." handling
+	const WCHAR *dst_start = dst;
+
 	while (*src != '\0')
 	{
 		LPCWSTR sep = FindSep(src);
@@ -194,11 +226,15 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 			//              |   |
 			//              |   +-new cursor
 			//              |
-			//              +-NewPath + 7
+			//              +-dst_start
 			//
 			// move dst back to the previous backslash
-			for (dst -= 2; *dst != L'\\' && dst > NewPath + 7; --dst);
-			++dst;
+			// but not behind dst_start
+			if (dst > dst_start)
+			{
+				for (dst -= 2; *dst != L'\\' && dst >= dst_start; --dst);
+				++dst;
+			}
 		}
 		else
 		{
