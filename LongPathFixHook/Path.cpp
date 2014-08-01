@@ -55,7 +55,7 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 	// Skip device names
 	for (int i=0; i<_countof(DeviceNames); ++i)
 	{
-		if (wcsicmp(Path, DeviceNames[i]) == 0)
+		if (_wcsicmp(Path, DeviceNames[i]) == 0)
 			return Path;
 	}
 
