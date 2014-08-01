@@ -90,7 +90,7 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 		WCHAR Drive = Dir[0];
 
 		// allocate buffer if needed
-		DWORD RequiredSize = (_countof(NtPathPrefix) - 1) + 2 + len + 1;
+		size_t RequiredSize = (_countof(NtPathPrefix) - 1) + 2 + len + 1;
 		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
@@ -113,7 +113,7 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 		// absolute path ("c:\foo\bar")
 
 		// allocate buffer if needed
-		DWORD RequiredSize = (_countof(NtPathPrefix) - 1) + len + 1;
+		size_t RequiredSize = (_countof(NtPathPrefix) - 1) + len + 1;
 		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
@@ -135,7 +135,7 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 		// UNC (\\foo\bar\baz)
 
 		// allocate buffer if needed
-		DWORD RequiredSize = (_countof(NtUncPrefix) - 1) + len + 1;
+		size_t RequiredSize = (_countof(NtUncPrefix) - 1) + len + 1;
 		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
@@ -156,7 +156,7 @@ template<size_t BufferSize> LPCWSTR CanonizePath(LPCWSTR Path, WCHAR (&Buffer)[B
 			return NULL;
 
 		// allocate buffer if needed
-		DWORD RequiredSize = (_countof(NtPathPrefix) - 1) + (DirLength) + 1 + len + 1;
+		size_t RequiredSize = (_countof(NtPathPrefix) - 1) + (DirLength) + 1 + len + 1;
 		NewPath = (RequiredSize > BufferSize) ? new WCHAR[RequiredSize] : Buffer;
 		if (NewPath == NULL)
 			return NULL;
